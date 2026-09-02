@@ -27,6 +27,32 @@ object ApiClient {
         }
     }
 
+    fun postItem(url: String, name: String, description: String): String {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        return try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = TIMEOUT_MS
+            connection.readTimeout = TIMEOUT_MS
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            connection.setRequestProperty("Accept", "application/json")
+
+            val payload = JSONObject()
+                .put("name", name)
+                .put("description", description)
+                .toString()
+            connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+
+            if (status !in 200..299) "HTTP $status\n$body" else "OK (id ${JSONObject(body).optString("id")})"
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun formatResponse(body: String): String {
         val trimmed = body.trim()
         return try {
